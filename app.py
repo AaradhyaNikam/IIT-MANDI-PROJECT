@@ -1,76 +1,82 @@
-# streamlit_app.py
 import streamlit as st
-import tensorflow as tf
-from tensorflow.keras.preprocessing import image
-import numpy as np
-import json
 from pathlib import Path
+import numpy as np
 from PIL import Image
+import tensorflow as tf
+import json
 
-# -----------------------------
-# Paths
-# -----------------------------
+# ------------------------------
+# Load Model and Class Mapping
+# ------------------------------
 models_dir = Path("models")
 model_path = models_dir / "model.keras"
-class_mapping_path = models_dir / "class_mapping.json"
+model = tf.keras.models.load_model(str(model_path))
 
-# -----------------------------
-# Load Model and Class Mapping
-# -----------------------------
-@st.cache_resource
-def load_model_and_mapping():
-    model = tf.keras.models.load_model(model_path)
-    with open(class_mapping_path, "r", encoding="utf8") as f:
+mapping_path = models_dir / "class_mapping.json"
+if mapping_path.exists():
+    with open(mapping_path, "r", encoding="utf8") as f:
         class_mapping = json.load(f)
-    return model, class_mapping
+else:
+    class_mapping = None
 
-model, class_mapping = load_model_and_mapping()
 
-# -----------------------------
-# App Title
-# -----------------------------
-st.title("🌱 Plant Disease Detection")
-st.write("Upload a plant leaf image or take a photo to detect its disease.")
+# ------------------------------
+# Image Preprocessing Function
+# ------------------------------
+def preprocess(image, image_size=(224, 224)):  # Adjusted for transfer learning models
+    img = image.convert("RGB").resize(image_size)
+    arr = np.asarray(img, dtype=np.float32) / 255.0
+    return np.expand_dims(arr, axis=0)
 
-# -----------------------------
-# Image Upload / Camera
-# -----------------------------
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+
+# ------------------------------
+# Streamlit UI Setup
+# ------------------------------
+st.set_page_config(page_title="AgriVision AI", page_icon="🌿", layout="centered")
+
+st.title("🌾 AgriVision AI – Crop Disease Detection")
+st.write("Upload a plant leaf image below and click **Analyze Image** to detect crop diseases using AI.")
+
+# ------------------------------
+# Upload Section
+# ------------------------------
+uploaded_file = st.file_uploader("📤 Upload a crop image (JPG, JPEG, PNG)", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption='Uploaded Image', use_column_width=True)
+    # Show uploaded image
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    # Preprocess image
-    img_resized = img.resize((224, 224))
-    x = image.img_to_array(img_resized)
-    x = np.expand_dims(x, axis=0)
-    x = x / 255.0
+    # Add Analyze Button
+    analyze_button = st.button("🔍 Analyze Image")
 
-    # Prediction
-    preds = model.predict(x)
-    idx = int(np.argmax(preds))
-    prob = float(preds[0, idx])
-    label = class_mapping[str(idx)]
+    if analyze_button:
+        with st.spinner("Analyzing... please wait ⏳"):
+            # Preprocess and predict
+            x = preprocess(image, image_size=(224, 224))
+            preds = model.predict(x)
+            idx = int(preds.argmax(axis=-1)[0])
+            prob = float(preds[0, idx])
+            percent = prob * 100.0
+            label = class_mapping.get(str(idx), f"Class {idx}") if class_mapping else f"Class {idx}"
 
-    # Show Result
-    st.success(f"Predicted: **{label}** ({prob*100:.2f}% confidence)")
+        # Display result
+        st.success(f"✅ **Prediction:** {label}")
+        st.info(f"🎯 **Confidence:** {percent:.2f}%")
 
-# Optional: take photo from camera
-if st.button("Take a Photo"):
-    picture = st.camera_input("Capture your leaf")
-    if picture is not None:
-        img = Image.open(picture).convert("RGB")
-        st.image(img, caption='Captured Image', use_column_width=True)
+        # Optional detailed view
+        if st.checkbox("Show detailed probabilities"):
+            st.subheader("🔢 Class Probabilities")
+            for i, p in enumerate(preds[0]):
+                cls = class_mapping.get(str(i), f"Class {i}") if class_mapping else f"Class {i}"
+                st.write(f"{cls}: {p*100:.2f}%")
 
-        # Preprocess and predict
-        img_resized = img.resize((224, 224))
-        x = image.img_to_array(img_resized)
-        x = np.expand_dims(x, axis=0)
-        x = x / 255.0
+else:
+    st.info("👆 Please upload an image to begin analysis.")
 
-        preds = model.predict(x)
-        idx = int(np.argmax(preds))
-        prob = float(preds[0, idx])
-        label = class_mapping[str(idx)]
-        st.success(f"Predicted: **{label}** ({prob*100:.2f}% confidence)")
+# ------------------------------
+# Footer
+# ------------------------------
+st.markdown("---")
+st.caption("Developed by Aaradhya Aashish Nikam | Team Mavericks | B.Tech Data Science & AI")
+
