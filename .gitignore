@@ -1,0 +1,18 @@
+# Google Cloud credentials
+gen-lang-client-0327394450-bb75c29f5afb.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
