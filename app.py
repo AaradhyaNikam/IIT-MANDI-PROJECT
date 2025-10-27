@@ -1,21 +1,19 @@
-import os
 import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
 import google.generativeai as genai
-import json
 
-# -----------------------------
-# 🔧 CONFIGURATION
-# -----------------------------
-MODEL_PATH = "models/model.keras"  # your trained CNN model path
-SERVICE_ACCOUNT = "gen-lang-client-0327394450-bb75c29f5afb.json"  # your Gemini service account key file
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_ACCOUNT
+# -----------------------------------
+# 🧠 AUTHENTICATION (Gemini API Key)
+# -----------------------------------
+genai.configure(api_key="AIzaSyANg7qC5xtuW8l4UCdyJ7lJTc8jfhw4DE8")  # 🔒 Replace privately, don’t share it!
 
-# -----------------------------
-# 🧠 LOAD MODEL
-# -----------------------------
+# -----------------------------------
+# 🔧 MODEL CONFIGURATION
+# -----------------------------------
+MODEL_PATH = "models/model.keras"
+
 @st.cache_resource
 def load_model():
     model = tf.keras.models.load_model(MODEL_PATH)
@@ -23,9 +21,9 @@ def load_model():
 
 model = load_model()
 
-# -----------------------------
-# 🗂️ DEFINE CLASS LABELS
-# -----------------------------
+# -----------------------------------
+# 🌿 CLASS LABELS
+# -----------------------------------
 class_mapping = {
     0: "Apple___Apple_scab",
     1: "Apple___Black_rot",
@@ -67,83 +65,56 @@ class_mapping = {
     37: "Tomato___healthy"
 }
 
-# -----------------------------
-# ⚙️ CONFIGURE GEMINI MODEL
-# -----------------------------
-try:
-    genai.configure()  # auto-picks service account from env
-    gemini_model = genai.GenerativeModel("models/gemini-2.0-flash")  # can change to your available model
-    GEMINI_READY = True
-except Exception as e:
-    st.error(f"⚠️ Gemini Initialization Error: {e}")
-    GEMINI_READY = False
+# -----------------------------------
+# ⚙️ GEMINI MODEL INIT
+# -----------------------------------
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
-# -----------------------------
-# 🎨 STREAMLIT UI
-# -----------------------------
-st.set_page_config(page_title="🌿 Plant Disease Detection & Chatbot", layout="centered")
-st.title("🌿 Plant Disease Detection & Gemini Chatbot")
-st.write("Upload a plant leaf image to detect disease and get instant treatment advice!")
+# -----------------------------------
+# 🧩 STREAMLIT UI
+# -----------------------------------
+st.title("🌿 Plant Disease Detection & Treatment Chatbot")
+st.write("Upload a leaf image and get treatment advice instantly!")
 
-# -----------------------------
-# 📸 IMAGE UPLOAD
-# -----------------------------
-uploaded_file = st.file_uploader("Upload an image of the leaf", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("📸 Upload an image of the plant leaf", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
     if st.button("🔍 Analyze Image"):
-        with st.spinner("Analyzing the leaf image..."):
-            # preprocess image
+        with st.spinner("Analyzing the image..."):
             img = image.resize((224, 224))
             img_array = np.expand_dims(np.array(img) / 255.0, axis=0)
-
-            # prediction
             prediction = model.predict(img_array)
             predicted_class = int(np.argmax(prediction))
-            disease_name = class_mapping.get(predicted_class, "Unknown Disease")
+            disease_name = class_mapping.get(predicted_class, "Unknown disease")
 
-            st.success(f"🩺 Detected Disease: **{disease_name}**")
+            st.success(f"🩺 Detected: **{disease_name}**")
 
-            # -----------------------------
-            # 🧠 GEMINI RESPONSE
-            # -----------------------------
-            if GEMINI_READY:
-                try:
-                    prompt = f"My plant has {disease_name}. Suggest treatment steps, prevention tips, and organic solutions."
-                    response = gemini_model.generate_content(prompt)
-                    st.subheader("🌱 Treatment & Advice")
-                    st.write(response.text)
-                except Exception as e:
-                    st.error(f"Gemini API Error: {e}")
-            else:
-                st.warning("Gemini model not configured correctly. Please check API credentials.")
+            try:
+                query = f"My plant has {disease_name}. Suggest treatment steps, prevention methods, and organic solutions."
+                response = gemini_model.generate_content(query)
+                st.subheader("🌱 Treatment Advice")
+                st.write(response.text)
+            except Exception as e:
+                st.error(f"⚠️ Gemini API Error: {e}")
 
-# -----------------------------
-# 💬 CHATBOT SECTION
-# -----------------------------
+# -----------------------------------
+# 💬 Chat Interface
+# -----------------------------------
 st.markdown("---")
-st.subheader("💬 Ask About Plant Care")
+st.subheader("💬 Ask More Questions About Plant Care")
 
 user_query = st.text_input("Type your question here...")
 
-if st.button("Send"):
-    if user_query.strip():
-        if GEMINI_READY:
-            try:
-                response = gemini_model.generate_content(user_query)
-                st.write(response.text)
-            except Exception as e:
-                st.error(f"Gemini API Error: {e}")
-        else:
-            st.warning("Gemini is not active. Please check your service account setup.")
+if st.button("Send to Chatbot"):
+    if user_query.strip() != "":
+        try:
+            response = gemini_model.generate_content(user_query)
+            st.write(response.text)
+        except Exception as e:
+            st.error(f"⚠️ Gemini API Error: {e}")
     else:
-        st.warning("Please type your question before sending.")
+        st.warning("Please type a question before sending.")
 
-# -----------------------------
-# 🧾 FOOTER
-# -----------------------------
-st.markdown("---")
-st.caption("🌾 Developed by Team Mavericks |Aaradhya Aashish Nikam | Powered by TensorFlow & Gemini AI")
