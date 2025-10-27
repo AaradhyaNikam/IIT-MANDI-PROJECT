@@ -7,7 +7,7 @@ import google.generativeai as genai
 # -----------------------------------
 # 🧠 AUTHENTICATION (Gemini API Key)
 # -----------------------------------
-genai.configure(api_key="AIzaSyANg7qC5xtuW8l4UCdyJ7lJTc8jfhw4DE8")  # 🔒 Replace privately, don’t share it!
+genai.configure(api_key="AIzaSyD3rQVFg3bjqTaTtL1m67QKipeETQnbB8k")  # 🔒 Replace privately, don’t share it!
 
 # -----------------------------------
 # 🔧 MODEL CONFIGURATION
