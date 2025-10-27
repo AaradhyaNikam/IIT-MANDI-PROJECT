@@ -3,17 +3,27 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 import google.generativeai as genai
+import os
 
-# -----------------------------------
-# 🧠 AUTHENTICATION (Gemini API Key)
-# -----------------------------------
-genai.configure(api_key="AIzaSyD3rQVFg3bjqTaTtL1m67QKipeETQnbB8k")  # 🔒 Replace privately, don’t share it!
+# -----------------------------
+# 🔧 CONFIGURATION
+# -----------------------------
+MODEL_PATH = "models/model.keras"   # your trained CNN model file
 
-# -----------------------------------
-# 🔧 MODEL CONFIGURATION
-# -----------------------------------
-MODEL_PATH = "models/model.keras"
+# ✅ Load API key safely (works both locally and online)
+api_key = os.getenv("AIzaSyD3rQVFg3bjqTaTtL1m67QKipeETQnbB8k")
 
+# If running locally, uncomment the next line and paste your key for testing
+# api_key = "YOUR_API_KEY_HERE"
+
+if not api_key:
+    st.error("❌ No Gemini API key found. Please set GOOGLE_API_KEY environment variable.")
+else:
+    genai.configure(api_key=api_key)
+
+# -----------------------------
+# 🧠 LOAD MODEL
+# -----------------------------
 @st.cache_resource
 def load_model():
     model = tf.keras.models.load_model(MODEL_PATH)
@@ -21,9 +31,9 @@ def load_model():
 
 model = load_model()
 
-# -----------------------------------
-# 🌿 CLASS LABELS
-# -----------------------------------
+# -----------------------------
+# 🗂️ DEFINE CLASS LABELS
+# -----------------------------
 class_mapping = {
     0: "Apple___Apple_scab",
     1: "Apple___Black_rot",
@@ -65,56 +75,65 @@ class_mapping = {
     37: "Tomato___healthy"
 }
 
-# -----------------------------------
-# ⚙️ GEMINI MODEL INIT
-# -----------------------------------
-gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+# -----------------------------
+# 🤖 CONFIGURE GEMINI MODEL
+# -----------------------------
+gemini_model = None
+if api_key:
+    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
 
-# -----------------------------------
+# -----------------------------
 # 🧩 STREAMLIT UI
-# -----------------------------------
+# -----------------------------
 st.title("🌿 Plant Disease Detection & Treatment Chatbot")
-st.write("Upload a leaf image and get treatment advice instantly!")
+st.write("Upload a plant leaf image to detect disease and get instant treatment advice.")
 
-uploaded_file = st.file_uploader("📸 Upload an image of the plant leaf", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("📸 Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
     if st.button("🔍 Analyze Image"):
-        with st.spinner("Analyzing the image..."):
+        with st.spinner("Analyzing..."):
             img = image.resize((224, 224))
             img_array = np.expand_dims(np.array(img) / 255.0, axis=0)
+
             prediction = model.predict(img_array)
             predicted_class = int(np.argmax(prediction))
             disease_name = class_mapping.get(predicted_class, "Unknown disease")
 
             st.success(f"🩺 Detected: **{disease_name}**")
 
-            try:
-                query = f"My plant has {disease_name}. Suggest treatment steps, prevention methods, and organic solutions."
-                response = gemini_model.generate_content(query)
-                st.subheader("🌱 Treatment Advice")
-                st.write(response.text)
-            except Exception as e:
-                st.error(f"⚠️ Gemini API Error: {e}")
+            if gemini_model:
+                try:
+                    query = f"My plant has {disease_name}. Suggest treatment steps, prevention methods, and organic solutions."
+                    response = gemini_model.generate_content(query)
+                    st.subheader("🌱 Treatment Advice")
+                    st.write(response.text)
+                except Exception as e:
+                    st.error(f"⚠️ Gemini API Error: {e}")
+            else:
+                st.warning("Gemini model not configured. Please add your API key.")
 
-# -----------------------------------
-# 💬 Chat Interface
-# -----------------------------------
+# -----------------------------
+# 🗨️ CHATBOT
+# -----------------------------
 st.markdown("---")
-st.subheader("💬 Ask More Questions About Plant Care")
+st.subheader("💬 Chat with the Plant Expert")
 
-user_query = st.text_input("Type your question here...")
+user_query = st.text_input("Ask your plant-related question:")
 
-if st.button("Send to Chatbot"):
-    if user_query.strip() != "":
+if st.button("Send"):
+    if user_query.strip() == "":
+        st.warning("Please type a question first.")
+    elif not gemini_model:
+        st.error("❌ Gemini model not configured. Add your API key.")
+    else:
         try:
             response = gemini_model.generate_content(user_query)
             st.write(response.text)
         except Exception as e:
             st.error(f"⚠️ Gemini API Error: {e}")
-    else:
-        st.warning("Please type a question before sending.")
+
 
