@@ -10,11 +10,14 @@ import os
 # -----------------------------
 MODEL_PATH = "models/model.keras"   # your trained CNN model file
 
-# ✅ Load API key safely (works both locally and online)
-api_key = os.getenv("AIzaSyBjHOa503ZqDVulA4Jm88rgy_L6D_6JjFw")
+# ✅ Set Gemini API Key (works locally and on deployment)
+# Option 1: Use environment variable (recommended for deployment)
+api_key = os.getenv("GOOGLE_API_KEY")
 
-# If running locally, uncomment the next line and paste your key for testing
-# api_key = "YOUR_API_KEY_HERE"
+# Option 2: Hardcode key (for local testing only)
+# ⚠️ DO NOT UPLOAD THIS TO GITHUB WITH YOUR KEY INCLUDED
+if not api_key:
+    api_key = "AIzaSyBjHOa503ZqDVulA4Jm88rgy_L6D_6JjFw"
 
 if not api_key:
     st.error("❌ No Gemini API key found. Please set GOOGLE_API_KEY environment variable.")
