@@ -11,7 +11,7 @@ import os
 MODEL_PATH = "models/model.keras"   # your trained CNN model file
 
 # ✅ Load API key safely (works both locally and online)
-api_key = os.getenv("AIzaSyD3rQVFg3bjqTaTtL1m67QKipeETQnbB8k")
+api_key = os.getenv("AIzaSyBjHOa503ZqDVulA4Jm88rgy_L6D_6JjFw")
 
 # If running locally, uncomment the next line and paste your key for testing
 # api_key = "YOUR_API_KEY_HERE"
